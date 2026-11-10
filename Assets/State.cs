@@ -76,7 +76,7 @@ public class Idle : State
                nextState = new Patrol(npc, agent, anim, player); // Corrigido: faltava o 'anim'
                stage = EVENT.EXIST; // Corrigido: EVENT.EXIST (maiúsculo/minúsculo correto)
           }
-          base.Update();
+          
      }
      public override void Exist() // Corrigido: de EXIST() para Exist() para bater com a classe base
      {
@@ -105,19 +105,18 @@ public class Patrol : State
 
      public override void Update()
      {
-         // Corrigido: 'remaininDistance' para 'remainingDistance'
+         
          if (agent.remainingDistance < 1)
          {
-              // Corrigido: Count - 1 para evitar estouro de índice (IndexOutOfRangeException)
+             
               if (currentIndex >= GameEnvironment.Singleton.Checkpoints.Count - 1) 
                   currentIndex = 0;
               else 
                   currentIndex++;
 
-              // Corrigido: Sintaxe correta para o SetDestination
               agent.SetDestination(GameEnvironment.Singleton.Checkpoints[currentIndex].transform.position);
          }
-         base.Update();
+        
      }
 
      public override void Exist()
