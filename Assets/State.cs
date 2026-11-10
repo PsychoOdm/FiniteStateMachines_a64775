@@ -32,7 +32,7 @@ public class State
    {
         npc = _npc;
         agent = _agent;
-        anim = _anim; // Corrigido: faltava inicializar o anim
+        anim = _anim;
         stage = EVENT.ENTER;
         player = _player;
    }
@@ -52,6 +52,28 @@ public class State
         }
         return this;
    }
+
+   public bool CanSeePlayer()
+   {
+     Vector3 direction = player.position - npc.transform.position;
+     float angle = Vector3.Angle(direction, npc.transform.forward);
+
+     if (direction.magnitude < visDist && angle > visAngle)
+     {
+          return true;
+     }
+     return false;
+   }
+
+   public bool CanAttackPlayer()
+   {
+     Vector3 direction = player.position - npc.transform.position;
+     if (direction.magnitude < shootDist)
+     {
+          return true;
+     }
+     return false;
+   }
 }
 
 public class Idle : State
@@ -64,8 +86,6 @@ public class Idle : State
 
      public override void Enter()
      {
-          // currentIndex foi movido para Patrol, mas se quiser usar aqui, declare-o. 
-          // Removido o currentIndex daqui para evitar erro de variável não existente.
           anim.SetTrigger("isIdle");
           base.Enter();
      }
@@ -73,15 +93,14 @@ public class Idle : State
      {
           if (Random.Range(0, 100) < 10)
           {
-               nextState = new Patrol(npc, agent, anim, player); // Corrigido: faltava o 'anim'
-               stage = EVENT.EXIST; // Corrigido: EVENT.EXIST (maiúsculo/minúsculo correto)
+               nextState = new Patrol(npc, agent, anim, player);
+               stage = EVENT.EXIST;
           }
-          
      }
-     public override void Exist() // Corrigido: de EXIST() para Exist() para bater com a classe base
+     public override void Exist()
      {
           anim.ResetTrigger("isIdle");
-          base.Exist(); // Corrigido: faltavam os parênteses ()
+          base.Exist();
      }
 }
 
@@ -92,36 +111,102 @@ public class Patrol : State
      public Patrol(GameObject _npc, NavMeshAgent _agent, Animator _anim, Transform _player)
      : base(_npc, _agent, _anim, _player)
      {
-         name = STATE.PATROL;
-         agent.speed = 2;
-         agent.isStopped = false;
+          name = STATE.PATROL;
+          agent.speed = 2;
+          agent.isStopped = false;
      } 
 
      public override void Enter()
      {
-         anim.SetTrigger("isWalking");
-         base.Enter();
+          anim.SetTrigger("isWalking");
+          base.Enter();
      }
 
      public override void Update()
      {
-         
-         if (agent.remainingDistance < 1)
-         {
-             
-              if (currentIndex >= GameEnvironment.Singleton.Checkpoints.Count - 1) 
-                  currentIndex = 0;
-              else 
-                  currentIndex++;
+          if (agent.remainingDistance < 1)
+          {
+               if (currentIndex >= GameEnvironment.Singleton.Checkpoints.Count - 1) 
+                   currentIndex = 0;
+               else 
+                   currentIndex++;
 
-              agent.SetDestination(GameEnvironment.Singleton.Checkpoints[currentIndex].transform.position);
-         }
-        
+               agent.SetDestination(GameEnvironment.Singleton.Checkpoints[currentIndex].transform.position);
+          }
      }
 
      public override void Exist()
      {
-         anim.ResetTrigger("isWalking");
-         base.Exist();
+          anim.ResetTrigger("isWalking");
+          base.Exist();
+     }
+}
+
+public class Pursue : State
+{
+     public Pursue(GameObject _npc, NavMeshAgent _agent, Animator _anim, Transform _player) : base(_npc, _agent, _anim, _player)
+     {
+          name = STATE.PURSUE;
+          agent.speed = 5;
+          agent.isStopped = false;
+     }
+
+     public override void Enter()
+     {
+          anim.SetTrigger("isRunning");
+          base.Enter();
+     }
+
+     public override void Update()
+     {
+        agent.SetDestination(player.position);
+        if (agent.hasPath)
+        {
+          if(CanAttackPlayer())
+          {
+               nextState = new Attack(npc, agent, anim, player);
+               stage = EVENT.EXIST;
+          }
+          else if (!CanSeePlayer())
+          {
+               nextState = new Patrol(npc, agent, anim, player);
+               stage = EVENT.EXIST;
+          }
+        }  
+     }
+
+     public override void Exist()
+     {
+          anim.ResetTrigger("isRunning");
+          base.Exist();
+     }
+}
+
+public class Attack : State
+{
+     float rotationSpeed = 2.0f;
+     AudioSource shoot;
+     
+     public Attack(GameObject _npc, NavMeshAgent _agent, Animator _anim, Transform _player) : base (_npc, _agent, _anim, _player)
+     {
+          name = STATE.ATTACK;
+          shoot = _npc.GetComponent<AudioSource>();
+     }
+
+     public override void Enter()
+     {
+          anim.SetTrigger("isStopped");
+          agent.isStopped = true;
+          base.Enter();
+     }
+
+     public override void Update()
+     {
+          base.Update();
+     }
+
+     public override void Exist()
+     {
+          base.Exist();
      }
 }
