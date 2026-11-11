@@ -55,24 +55,24 @@ public class State
 
    public bool CanSeePlayer()
    {
-     Vector3 direction = player.position - npc.transform.position;
-     float angle = Vector3.Angle(direction, npc.transform.forward);
+      Vector3 direction = player.position - npc.transform.position;
+      float angle = Vector3.Angle(direction, npc.transform.forward);
 
-     if (direction.magnitude < visDist && angle > visAngle)
-     {
+      if (direction.magnitude < visDist && angle > visAngle)
+      {
           return true;
-     }
-     return false;
+      }
+      return false;
    }
 
    public bool CanAttackPlayer()
    {
-     Vector3 direction = player.position - npc.transform.position;
-     if (direction.magnitude < shootDist)
-     {
+      Vector3 direction = player.position - npc.transform.position;
+      if (direction.magnitude < shootDist)
+      {
           return true;
-     }
-     return false;
+      }
+      return false;
    }
 }
 
@@ -91,7 +91,13 @@ public class Idle : State
      }
      public override void Update()
      {
-          if (Random.Range(0, 100) < 10)
+          if (CanSeePlayer())
+          {
+               nextState = new Pursue(npc, agent, anim, player);
+               stage = EVENT.EXIST;
+          }
+
+          else if (Random.Range(0, 100) < 10)
           {
                nextState = new Patrol(npc, agent, anim, player);
                stage = EVENT.EXIST;
@@ -118,6 +124,17 @@ public class Patrol : State
 
      public override void Enter()
      {
+          float lastDist = Mathf.Infinity;
+          for(int i = 0; i < GameEnvironment.Singleton.Checkpoints.Count; i++)
+          {
+               GameObject WP = GameEnvironment.Singleton.Checkpoints[i]; // Corrigido aqui
+               float distance = Vector3.Distance(npc.transform.position, WP.transform.position);
+               if (distance < lastDist)
+               {
+                    currentIndex = i - 1;
+                    lastDist = distance;
+               }
+          }
           anim.SetTrigger("isWalking");
           base.Enter();
      }
@@ -127,11 +144,17 @@ public class Patrol : State
           if (agent.remainingDistance < 1)
           {
                if (currentIndex >= GameEnvironment.Singleton.Checkpoints.Count - 1) 
-                   currentIndex = 0;
+                    currentIndex = 0;
                else 
-                   currentIndex++;
+                    currentIndex++;
 
                agent.SetDestination(GameEnvironment.Singleton.Checkpoints[currentIndex].transform.position);
+          }
+
+          if (CanSeePlayer())
+          {
+               nextState = new Pursue(npc, agent, anim, player);
+               stage = EVENT.EXIST;
           }
      }
 
@@ -195,14 +218,25 @@ public class Attack : State
 
      public override void Enter()
      {
-          anim.SetTrigger("isStopped");
+          anim.SetTrigger("isShooting");
           agent.isStopped = true;
+          shoot.Play();
           base.Enter();
      }
 
      public override void Update()
      {
-          base.Update();
+          Vector3 direction = player.position - npc.transform.position;
+          float angle = Vector3.Angle(direction, npc.transform.forward);
+          direction.y = 0;
+
+          npc.transform.rotation = Quaternion.Slerp(npc.transform.rotation, Quaternion.LookRotation(direction), Time.deltaTime * rotationSpeed);
+
+          if (!CanAttackPlayer())
+          {
+               nextState = new Idle(npc, agent, anim, player);
+               stage = EVENT.EXIST;
+          }
      }
 
      public override void Exist()
